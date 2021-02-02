@@ -1,63 +1,53 @@
-describe('webdriver.io page', () => {
-    it('should have the right title', () => {
+const HomePage = require("../pages/home.page");
+const LoginPage = require("../pages/login.page");
 
-        // waitForDisplayed
-        // waitForExist
-        // waitUntil
-        browser.url('https://i-earn1.vip/index.php/Home/Index/index.html')
+const Users = require("../data/Users");
+const common = require("../util/common");
 
-        const formLogin = $('[class="wrapper passport"]');
-        formLogin.waitForDisplayed({ timeout: 10000 });
-        $('#inputEmail').setValue('0914470108')
-        $('#inputPassword').setValue('MATKHAUiearn135')
-        $('[class="btn btn-default btn-lg btn-rounded shadow btn-block login"]').click()
-        $('[class="modal-open"]').waitForDisplayed({ timeout: 20000 })
-        $('[class="modal fade in tanchuang show"]').waitForDisplayed({ timeout: 20000 })
-        // browser.pause(5000)
+describe("webdriver.io page", () => {
+  it("demo receive task", () => {
+    browser.maximizeWindow();
+    // LoginPage.loginTikTok();
+    LoginPage.loginYoutube();
+    LoginPage.loginFaceBook();
+    LoginPage.loginInstagram();
 
-        let modelContent = $('[class="modal fade in tanchuang show"]')
-        // browser.pause(2000)
-        if (modelContent.isExisting()) {
-            modelContent.$('[class="close close-rounded tanchuangClose"]').click()
-        }
+    for (let i = 0; i < Users.length; i++) {
+      LoginPage.open();
+      LoginPage.login(Users[i].username, Users[i].password);
 
-        let numberTaskOfDay
-        // browser.pause('6000')
-        let listInfo = $('[class="row text-center mt-1"]').$$('[class="card-body"]')
-        for (let i = 0; i < listInfo.length; i++) {
-            if (listInfo[i].$('[class="text-secondary text-mute small"]').getText() === 'Số nhiệm vụ') {
-                numberTaskOfDay = Number(listInfo[i].$('[class="mb-0 font-weight-normal"]').getText())
-                break
-            }
-        }
+      HomePage.closePopupModelFadeShow();
+      let numberTaskOfDay = HomePage.getNumberTaskOfDay();
 
-        // browser.pause(5000)
-        let receiveTaskBtn = $('[class="btn btn-link-default"]')
-        receiveTaskBtn.click()
-        browser.pause(5000)
+      HomePage.goToApplyTaskPage();
+      let taskCompleteReceived;
+      let taskNOTCompleteReceived;
 
-        let numberTaskReceived = []
-        let listAllTaskReceived = $$('[class="card-header bg-none"]')
-        for (let i = 0; i < listAllTaskReceived.length; i++) {
-            if (numberTaskOfDay > numberTaskReceived.length) {
-                let currentDate = new Date()
-                let dateOfTasks = listAllTaskReceived[i].$('[class="text-secondary small"]').getText().split(' ')[0].split('-')
-                if (Number(dateOfTasks[0]) === currentDate.getFullYear()
-                    && Number(dateOfTasks[1]) === (currentDate.getMonth() + 1)
-                    && Number(dateOfTasks[2]) === currentDate.getDate()) {
-                    numberTaskReceived.push(listAllTaskReceived[i])
-                }
-
-            }
-        }
-        console.log('KAKAAAAAAAAAAAAAAAA: ' + numberTaskReceived.length)
-
-        // like
-        // aria-label="Like"
-        // class="_8-yf5 "
-
-        // follow button
-        // class="sqdOP yWX7d     _8A5w5    "
-    })
-})
-
+      taskCompleteReceived = HomePage.getNumberTaskCompleteReceived(
+        numberTaskOfDay
+      );
+      if (numberTaskOfDay === taskCompleteReceived.length) {
+        continue;
+      } else {
+        HomePage.goToSubmissionTaskPage();
+        taskNOTCompleteReceived = HomePage.getNumberTaskCompleteReceived(
+          numberTaskOfDay
+        );
+      }
+      let remainNumberTask =
+        numberTaskOfDay -
+        (taskCompleteReceived.length + taskNOTCompleteReceived.length);
+      let countNewTaskReceive = 0
+      if (remainNumberTask > 0) {
+        HomePage.goToFenleiPage();
+        countNewTaskReceive = HomePage.receiveTask(remainNumberTask, common.getVip(numberTaskOfDay));
+        HomePage.goToSubmissionTaskPage();
+      }
+      if (taskNOTCompleteReceived.length > 0 ||
+        countNewTaskReceive > 0) {
+        HomePage.executeTask(numberTaskOfDay - taskCompleteReceived.length);
+      }
+      console.log("Execute task complete");
+    }
+  });
+});
