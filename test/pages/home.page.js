@@ -1,6 +1,13 @@
 const Page = require("./page");
 const { host, timeoutLoadComp } = require("../constant");
+const common = require("../util/common");
 const TypeTask = require("./../data/TypeTask");
+let {
+  numberTaskComplete,
+  numberTaskNotComplete,
+  listImageScreenShot,
+  listURLTask,
+} = require("../data/Model");
 
 /**
  * sub page containing specific selectors and methods for a specific page
@@ -9,20 +16,16 @@ class HomePage extends Page {
   /**
    * define selectors using getter methods
    */
-  get modelFadeShow() {
-    return $('[class="modal fade in tanchuang show"]');
-  }
-  get closeModelFadeShowBtn() {
-    return $('[class="close close-rounded tanchuangClose"]');
-  }
   get containerTask() {
-    return $('[class="container mb-3"]');
+    return $("//div[contains(@class, 'homepage')]");
   }
   get renwuliebiao() {
-    return $('[class="renwuliebiao_a"]');
+    return this.containerTask.$("//div[contains(@class, 'renwuliebiao_a')]");
   }
   get layersection() {
-    return $('[class="layui-m-layersection"]');
+    return $('[class="layui-m-layermain"]')
+      .$('[class="layui-m-layersection"]')
+      .$('[class="layui-m-layercont"]');
   }
   get layercont() {
     return $('[class="layui-m-layercont"]').getText();
@@ -60,14 +63,6 @@ class HomePage extends Page {
       .$("paper-button");
   }
 
-  closePopupModelFadeShow() {
-    if (this.modelFadeShow.isExisting()) {
-      this.modelFadeShow
-        .$('[class="close close-rounded tanchuangClose"]')
-        .click();
-    }
-  }
-
   getNumberTaskOfDay() {
     let result = 0;
     let listInfo = $('[class="row text-center mt-1"]').$$(
@@ -75,8 +70,10 @@ class HomePage extends Page {
     );
     for (let i = 0; i < listInfo.length; i++) {
       if (
-        listInfo[i].$('[class="text-secondary text-mute small"]').getText() ===
-        "Số nhiệm vụ"
+        listInfo[i]
+          .$('[class="text-secondary text-mute small"]')
+          .getText()
+          .toUpperCase() === "SỐ NHIỆM VỤ"
       ) {
         result = Number(
           listInfo[i].$('[class="mb-0 font-weight-normal"]').getText()
@@ -89,12 +86,18 @@ class HomePage extends Page {
 
   goToSubmissionTaskPage() {
     super.open("/index.php/Home/Task/submission_task.html");
-    this.containerTask.waitForDisplayed({ timeout: timeoutLoadComp });
+    this.containerTask
+      .$("//div[contains(@class, 'swiper-slide-active')]")
+      .$("//a[contains(@class, 'btn-outline-default')]")
+      .waitForDisplayed({ timeout: timeoutLoadComp });
   }
 
   goToApplyTaskPage() {
     super.open("/index.php/Home/Member/apply.html");
-    this.containerTask.waitForDisplayed({ timeout: timeoutLoadComp });
+    this.containerTask
+      .$("//div[contains(@class, 'swiper-slide-next')]")
+      .$("//a[contains(@class, 'btn-outline-default')]")
+      .waitForDisplayed({ timeout: timeoutLoadComp });
   }
 
   goToFenleiPage() {
@@ -104,7 +107,7 @@ class HomePage extends Page {
 
   getNumberTaskCompleteReceived(numberTaskOfDay) {
     let result = [];
-    let listAllTaskReceived = $$('[class="card-header bg-none"]');
+    let listAllTaskReceived = this.containerTask.$$("[class='card mb-3']");
     for (let i = 0; i < listAllTaskReceived.length; i++) {
       if (result.length === numberTaskOfDay) {
         break;
@@ -126,13 +129,18 @@ class HomePage extends Page {
     return result;
   }
 
-  receiveTask(remainNumber, name) {
+  receiveTask(numberTaskOfDay) {
     let count = 0;
+    let name = common.getVip(numberTaskOfDay);
     let listAllTask = this.renwuliebiao.$$("li");
     for (let i = 0; i < listAllTask.length; i++) {
-      if (count === remainNumber) {
+      if (
+        numberTaskComplete + numberTaskNotComplete + count ===
+        numberTaskOfDay
+      ) {
         break;
       }
+
       let taskComponent = listAllTask[i];
       let vipName = taskComponent.$('[class="renwu_xq_dj"]').getText();
       if (vipName === name) {
@@ -146,220 +154,175 @@ class HomePage extends Page {
         if (Number(remainNumberAllTask) === 0) {
           continue;
         }
-        if (TypeTask.length === 0) {
-          let receiveBtn = taskComponent.$('[class="renwu_jd"]').$("a");
-          browser.execute("arguments[0].click();", receiveBtn);
-          this.layersection.waitForDisplayed({ timeout: timeoutLoadComp });
-          if (this.layercont === "Lĩnh nhiệm vụ thành công") {
-            count++;
-          }
-          this.layerbtn.$("span").click();
-          browser.pause(3000);
-        } else {
-          let typeTaskText = taskComponent
-            .$('[class="renwu_xq_img"]')
-            .$("img")
-            .getAttribute("src");
-          if (TypeTask.indexOf(typeTaskText) > -1) {
-            taskComponent.$('[class="renwu_jdbtn"]').$("a").scrollIntoView();
-            let receiveBtn = taskComponent.$('[class="renwu_jd"]').$("a");
-            browser.execute("arguments[0].click();", receiveBtn);
-            browser.pause(3000);
-            this.layersection.waitForDisplayed({ timeout: timeoutLoadComp });
-            if (this.layercont === "Lĩnh nhiệm vụ thành công") {
-              count++;
-            }
-            this.layerbtn.$("span").click();
-            browser.pause(3000);
-          }
-        }
-      }
-    }
-    return count;
-  }
 
-  executeTask(numberTaskOfDay) {
-    let result = [];
-    let listAllTaskReceived = $$('[class="card mb-3"]');
-    let count = 0;
-    let resultExecuteTask = false;
-    for (let i = 0; i < listAllTaskReceived.length; i++) {
-      this.goToSubmissionTaskPage();
-      browser.pause(3000);
-      if (result.length === numberTaskOfDay) {
-        break;
-      }
-      let taskReceived = listAllTaskReceived[count];
-      let currentDate = new Date();
-      let dateOfTasks = taskReceived
-        .$('[class="text-secondary small"]')
-        .getText()
-        .split(" ")[0]
-        .split("-");
-      let cashTask = taskReceived.$('[class="text-right text-mute"]').getText();
-      let taskAvailable = cashTask.slice(0, cashTask.indexOf("đ"));
-      if (
-        Number(dateOfTasks[0]) === currentDate.getFullYear() &&
-        Number(dateOfTasks[1]) === currentDate.getMonth() + 1 &&
-        Number(dateOfTasks[2]) === currentDate.getDate() &&
-        taskAvailable !== "0"
-      ) {
-        let typeTask = taskReceived.$('[class="media-body"]').$("p").getText();
-        if (typeTask === "facebook") {
-          resultExecuteTask = this.executeTaskFacebook(
-            taskReceived,
-            dateOfTasks,
-            i
-          );
-        } else if (typeTask === "youtube") {
-          resultExecuteTask = this.executeTaskYouTube(
-            taskReceived,
-            dateOfTasks,
-            i
-          );
-        } else if (typeTask === "tiktok") {
-          resultExecuteTask = this.executeTaskTiktok(
-            taskReceived,
-            dateOfTasks,
-            i
-          );
-        } else if (typeTask === "Instagram") {
-          resultExecuteTask = this.executeTaskInstagram(
-            taskReceived,
-            dateOfTasks,
-            i
-          );
+        let typeTaskText = taskComponent
+          .$('[class="renwu_xq_img"]')
+          .$("img")
+          .getAttribute("src");
+        if (TypeTask.indexOf(typeTaskText) === -1) {
+          continue;
         }
-        if (resultExecuteTask) {
-          result.push(taskReceived);
-        } else {
+
+        taskComponent.$('[class="renwu_jdbtn"]').$("a").scrollIntoView();
+        let receiveBtn = taskComponent.$('[class="renwu_jd"]').$("a");
+        browser.execute("arguments[0].click();", receiveBtn);
+        this.layersection.waitForDisplayed({ timeout: timeoutLoadComp });
+        if (
+          this.layercont ===
+          `Cấp độ hội viên của bạn mỗi ngày chỉ được nhận (${numberTaskOfDay}) nhiệm vụ！,`
+        ) {
+          break;
+        } else if (
+          this.layercont.toUpperCase() === "LĨNH NHIỆM VỤ THÀNH CÔNG"
+        ) {
           count++;
         }
+        this.layerbtn.$("span").click();
+        browser.waitUntil(
+          () =>
+            !$('[class="layui-m-layermain"]').isExisting() &&
+            !$('[class="layui-m-layermain"]').isDisplayed(),
+          { timeout: timeoutLoadComp }
+        );
       }
     }
   }
 
-  executeTaskFacebook(taskReceived, dateOfTasks, index) {
-    let urlTask = taskReceived
-      .$('[class="text-left text-mute text-break"]')
-      .getText();
-    if (!urlTask) {
-      return;
+  executeTask() {
+    this.goToSubmissionTaskPage();
+    let listAllTaskReceived = $$('[class="card mb-3"]');
+    for (let i = 0; i < listAllTaskReceived.length; i++) {
+      let taskReceived = listAllTaskReceived[i];
+
+      let cashTask = taskReceived.$('[class="text-right text-mute"]').getText();
+      let taskAvailable = cashTask.slice(0, cashTask.indexOf("đ"));
+      let urlTask = taskReceived
+        .$('[class="text-left text-mute text-break"]')
+        .getText();
+      let idImage = "";
+      if (!urlTask || taskAvailable === "0") {
+        idImage = "none";
+        if (listURLTask.indexOf(urlTask) === -1) {
+          listURLTask.push(urlTask);
+          listImageScreenShot.push(idImage);
+          taskReceived.saveScreenshot(`./image_${idImage}.png`);
+        }
+
+        this.sendImage(taskReceived, idImage);
+        continue;
+      }
+      let typeTask = taskReceived.$('[class="media-body"]').$("p").getText();
+      let hrefSubmitTask = taskReceived.$("button").getAttribute("onclick");
+      let urlSubmitTask = hrefSubmitTask.slice(
+        hrefSubmitTask.indexOf("'") + 1,
+        hrefSubmitTask.lastIndexOf("'")
+      );
+      idImage = urlSubmitTask.slice(
+        urlSubmitTask.lastIndexOf("/id/") + 4,
+        urlSubmitTask.indexOf(".html")
+      );
+      if (listURLTask.indexOf(urlTask) > -1) {
+        let ind = listURLTask.indexOf(urlTask);
+        this.sendImage(taskReceived, listImageScreenShot[ind]);
+        continue;
+      }
+      if (typeTask.toUpperCase() === "FACEBOOK") {
+        this.executeTaskFacebook(urlTask, taskReceived, idImage);
+      } else if (typeTask.toUpperCase() === "YOUTUBE") {
+        this.executeTaskYouTube(urlTask, taskReceived, idImage);
+      } else if (typeTask.toUpperCase() === "TIKTOK") {
+        this.executeTaskTiktok(urlTask, taskReceived, idImage);
+      } else if (typeTask.toUpperCase() === "INSTAGRAM") {
+        this.executeTaskInstagram(urlTask, taskReceived, idImage);
+      }
     }
-    // browser.newWindow(urlTask)
+  }
+
+  executeTaskFacebook(urlTask, taskReceived, idImage) {
     browser.url(urlTask);
     browser.pause(2000);
     this.watchFeed.waitForDisplayed({ timeout: timeoutLoadComp });
     let followBtn = this.watchFeed.$('[dir="auto"]').$("span=Theo dõi");
+    let unFollowBtn = this.watchFeed.$('[dir="auto"]').$("span=Đang theo dõi");
     if (followBtn.isExisting() && followBtn.isDisplayed()) {
       browser.execute("arguments[0].click();", followBtn);
+      browser.waitUntil(
+        () => unFollowBtn.isExisting() && unFollowBtn.isDisplayed(),
+        { timeout: timeoutLoadComp }
+      );
     }
-    browser.pause(2000);
     if (
       this.likeAriaLabel.isDisplayed() &&
-      this.likeAriaLabel.$("div:first-child").getText() === "Thích"
+      this.likeAriaLabel.$("div:first-child").getText().toUpperCase() ===
+        "THÍCH"
     ) {
       browser.execute(
         "arguments[0].click();",
         this.likeAriaLabel.$("div:first-child")
       );
+      browser.waitUntil(
+        () =>
+          !this.likeAriaLabel.isDisplayed() &&
+          !this.likeAriaLabel.isExisting() &&
+          this.unLikeAriaLabel.isDisplayed() &&
+          this.unLikeAriaLabel.isExisting(),
+        { timeout: timeoutLoadComp }
+      );
     }
-    // const filePath = `./${dateOfTasks[0]}${dateOfTasks[1]}${dateOfTasks[2]}/screenShot${index + 1}.png`
-    const filePath = `./screenShot_${dateOfTasks[0]}${dateOfTasks[1]}${
-      dateOfTasks[2]
-    }_${index + 1}.png`;
-    this.watchFeed.saveScreenshot(filePath);
-    this.goToSubmissionTaskPage();
+    listURLTask.push(urlTask);
+    listImageScreenShot.push(idImage);
+    this.watchFeed.saveScreenshot(`./image_${idImage}.png`);
 
-    // location.href='/index.php/Home/Task/submission_task_do/id/284375.html'
-    let hrefSubmitTask = taskReceived.$("button").getAttribute("onclick");
-    let urlSubmitTask = hrefSubmitTask.slice(
-      hrefSubmitTask.indexOf("'") + 1,
-      hrefSubmitTask.lastIndexOf("'")
-    );
-    browser.url(`${host}${urlSubmitTask}`);
-    $('[class="body_main mt tline"]').waitForDisplayed({
-      timeout: timeoutLoadComp,
-    });
-
-    const remoteFilePath = browser.uploadFile(filePath);
-    $('[class="body_main mt tline"]')
-      .$('[type="file"]')
-      .setValue(remoteFilePath);
-    browser.pause(2000);
-    $('[class="bala-btn"]').click();
-    console.log("hihi");
-    return true;
+    this.sendImage(taskReceived, idImage);
   }
 
-  executeTaskYouTube(taskReceived, dateOfTasks, index) {
-    let urlTask = taskReceived
-      .$('[class="text-left text-mute text-break"]')
-      .getText();
-    if (!urlTask) {
-      return;
-    }
+  executeTaskYouTube(urlTask, taskReceived, idImage) {
     browser.url(urlTask);
     browser.pause(2000);
     this.pageManager.waitForDisplayed({ timeout: timeoutLoadComp });
     if (
-      this.subscribeBtn.isExisting() &&
       this.subscribeBtn.isDisplayed() &&
-      (this.subscribeBtn.$("yt-formatted-string").getText() === "Đăng ký" ||
-        this.subscribeBtn.$("yt-formatted-string").getText() === "SUBSCRIBE")
+      (this.subscribeBtn.$("yt-formatted-string").getText().toUpperCase() ===
+        "ĐĂNG KÝ" ||
+        this.subscribeBtn.$("yt-formatted-string").getText().toUpperCase() ===
+          "SUBSCRIBE")
     ) {
       this.subscribeBtn.click();
+      browser.waitUntil(
+        () =>
+          this.subscribeBtn.$("yt-formatted-string").getText().toUpperCase() ===
+          "SUBSCRIBED",
+        { timeout: timeoutLoadComp }
+      );
     }
-    browser.pause(2000);
     if (this.likeBtn.isDisplayed() && this.likeBtn.isExisting()) {
       this.likeBtn.$("button").click();
     }
+    listURLTask.push(urlTask);
+    listImageScreenShot.push(idImage);
     browser.execute("window.scroll(0, 50)");
-    const filePath = `./screenShot_${dateOfTasks[0]}${dateOfTasks[1]}${
-      dateOfTasks[2]
-    }_${index + 1}.png`;
-    this.pageManager.$('[id="primary-inner"]').saveScreenshot(filePath);
-    this.goToSubmissionTaskPage();
+    this.pageManager
+      .$('[id="primary-inner"]')
+      .saveScreenshot(`./image_${idImage}.png`);
 
-    let hrefSubmitTask = taskReceived.$("button").getAttribute("onclick");
-    let urlSubmitTask = hrefSubmitTask.slice(
-      hrefSubmitTask.indexOf("'") + 1,
-      hrefSubmitTask.lastIndexOf("'")
-    );
-    browser.url(`${host}${urlSubmitTask}`);
-    $('[class="body_main mt tline"]').waitForDisplayed({
-      timeout: timeoutLoadComp,
-    });
-
-    const remoteFilePath = browser.uploadFile(filePath);
-    $('[class="body_main mt tline"]')
-      .$('[type="file"]')
-      .setValue(remoteFilePath);
-    browser.pause(2000);
-    $('[class="bala-btn"').click();
-    console.log("hihi");
-    return true;
+    this.sendImage(taskReceived, idImage);
   }
 
-  executeTaskTiktok(taskReceived, dateOfTasks, index) {
-    let urlTask = taskReceived
-      .$('[class="text-left text-mute text-break"]')
-      .getText();
-    if (!urlTask) {
-      return;
-    }
+  executeTaskTiktok(urlTask, taskReceived, idImage) {
     browser.url(urlTask);
-    browser.pause(2000);
     $('[id="main"]').waitForDisplayed({ timeout: timeoutLoadComp });
     if (
       $('[id="main"]')
-        .$('[class="share-layout-main is-error-page"]')
-        .isDisplayed() &&
-      $('[id="main"]')
-        .$('[class="share-layout-main is-error-page"]')
-        .isExisting()
+        .$('//main[contains(@class, "is-error-page")]')
+        .isDisplayed()
     ) {
-      return;
+      listURLTask.push(urlTask);
+      listImageScreenShot.push(idImage);
+      $('[id="main"]')
+        .$('//main[contains(@class, "is-error-page")]')
+        .saveScreenshot(`./image_${idImage}.png`);
+
+      return this.sendImage(taskReceived, idImage);
     }
     if (
       $('[id="main"]')
@@ -377,14 +340,17 @@ class HomePage extends Page {
         .$('[class="lazyload-wrapper"]')
         .$('[class="item-follow-wrapper"]')
         .$("button")
-        .getText() === "Đăng ký" ||
+        .getText()
+        .toUpperCase() === "ĐĂNG KÝ" ||
         $('[id="main"]')
           .$('[class="share-layout-main"]')
           .$('[class="lazyload-wrapper"]')
           .$('[class="item-follow-wrapper"]')
           .$("button")
-          .getText() === "Follow")
+          .getText()
+          .toUpperCase() === "FOLLOW")
     ) {
+      browser.pause(2000);
       $('[id="main"]')
         .$('[class="share-layout-main"]')
         .$('[class="lazyload-wrapper"]')
@@ -392,62 +358,37 @@ class HomePage extends Page {
         .$("button")
         .click();
     }
-    browser.pause(2000);
     if (
       $('[id="main"]')
         .$('[class="share-layout-main"]')
         .$('[class="lazyload-wrapper"]')
-        .$('[class="item-action-bar"]')
-        .$('[class="bar-item-wrapper"]')
+        .$('//div[contains(@class, "item-action-bar")]')
+        .$('//div[contains(@class, "bar-item-wrapper")]')
         .$("svg")
         .$("path")
-        .getAttribute("fill") === "black"
+        .getAttribute("fill")
+        .toUpperCase() === "BLACK"
     ) {
+      browser.pause(2000);
       $('[id="main"]')
         .$('[class="share-layout-main"]')
         .$('[class="lazyload-wrapper"]')
-        .$('[class="item-action-bar"]')
-        .$('[class="bar-item-wrapper"]')
+        .$('//div[contains(@class, "item-action-bar")]')
+        .$('//div[contains(@class, "bar-item-wrapper")]')
         .click();
     }
 
-    const filePath = `./screenShot_${dateOfTasks[0]}${dateOfTasks[1]}${
-      dateOfTasks[2]
-    }_${index + 1}.png`;
-
+    listURLTask.push(urlTask);
+    listImageScreenShot.push(idImage);
     $('[id="main"]')
       .$('[class="share-layout-main"]')
       .$('[class="lazyload-wrapper"]')
-      .saveScreenshot(filePath);
-    this.goToSubmissionTaskPage();
+      .saveScreenshot(`./image_${idImage}.png`);
 
-    let hrefSubmitTask = taskReceived.$("button").getAttribute("onclick");
-    let urlSubmitTask = hrefSubmitTask.slice(
-      hrefSubmitTask.indexOf("'") + 1,
-      hrefSubmitTask.lastIndexOf("'")
-    );
-    browser.url(`${host}${urlSubmitTask}`);
-    $('[class="body_main mt tline"]').waitForDisplayed({
-      timeout: timeoutLoadComp,
-    });
-
-    const remoteFilePath = browser.uploadFile(filePath);
-    $('[class="body_main mt tline"]')
-      .$('[type="file"]')
-      .setValue(remoteFilePath);
-    browser.pause(2000);
-    $('[class="bala-btn"').click();
-    console.log("hihi");
-    return true;
+    this.sendImage(taskReceived, idImage);
   }
 
-  executeTaskInstagram(taskReceived, dateOfTasks, index) {
-    let urlTask = taskReceived
-      .$('[class="text-left text-mute text-break"]')
-      .getText();
-    if (!urlTask) {
-      return;
-    }
+  executeTaskInstagram(urlTask, taskReceived, idImage) {
     browser.url(urlTask);
     browser.pause(2000);
     if ($("main").$("h2").getText() === "Sorry, this page isn't available.") {
@@ -457,12 +398,19 @@ class HomePage extends Page {
     if (
       $("article").$("header").$("button").isExisting() &&
       $("article").$("header").$("button").isDisplayed() &&
-      ($("article").$("header").$("button").getText() === "Đăng ký" ||
-        $("article").$("header").$("button").getText() === "Follow")
+      ($("article").$("header").$("button").getText().toUpperCase() ===
+        "ĐĂNG KÝ" ||
+        $("article").$("header").$("button").getText().toUpperCase() ===
+          "FOLLOW")
     ) {
       $("article").$("header").$("button").click();
+      browser.waitUntil(
+        () =>
+          $("article").$("header").$("button").getText().toUpperCase() ===
+          "FOLLOWING",
+        { timeout: timeoutLoadComp }
+      );
     }
-    browser.pause(2000);
     if (
       $("article")
         .$("section")
@@ -476,31 +424,50 @@ class HomePage extends Page {
         .isExisting()
     ) {
       $("article").$("section").$("button").click();
+      $("article")
+        .$("section")
+        .$("button")
+        .$('[aria-label="Unlike"]')
+        .waitForDisplayed({ timeout: timeoutLoadComp });
     }
-    const filePath = `./screenShot_${dateOfTasks[0]}${dateOfTasks[1]}${
-      dateOfTasks[2]
-    }_${index + 1}.png`;
-    $("article").saveScreenshot(filePath);
-    this.goToSubmissionTaskPage();
+    listURLTask.push(urlTask);
+    listImageScreenShot.push(idImage);
+    $("article").saveScreenshot(`./image_${idImage}.png`);
 
+    this.sendImage(taskReceived, idImage);
+  }
+
+  sendImage(taskReceived, idImage) {
+    this.goToSubmissionTaskPage();
     let hrefSubmitTask = taskReceived.$("button").getAttribute("onclick");
     let urlSubmitTask = hrefSubmitTask.slice(
       hrefSubmitTask.indexOf("'") + 1,
       hrefSubmitTask.lastIndexOf("'")
     );
+
     browser.url(`${host}${urlSubmitTask}`);
     $('[class="body_main mt tline"]').waitForDisplayed({
       timeout: timeoutLoadComp,
     });
 
-    const remoteFilePath = browser.uploadFile(filePath);
+    const remoteFilePath = browser.uploadFile(`./image_${idImage}.png`);
     $('[class="body_main mt tline"]')
       .$('[type="file"]')
       .setValue(remoteFilePath);
+    let imageSuccess = $('[class="body_main mt tline"]')
+      .$('[class="filelist"]')
+      .$('[class="success"]');
+
+    imageSuccess.waitForDisplayed({ timeout: timeoutLoadComp });
     browser.pause(2000);
-    $('[class="bala-btn"').click();
-    console.log("hihi");
-    return true;
+    $('[class="bala-btn"]').click();
+    browser.waitUntil(
+      () =>
+        !$('[class="body_main mt tline"]').isExisting() &&
+        !$('[class="body_main mt tline"]').isDisplayed(),
+      { timeout: timeoutLoadComp }
+    );
+    this.containerTask.waitForDisplayed({ timeout: timeoutLoadComp });
   }
 }
 

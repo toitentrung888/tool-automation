@@ -1,5 +1,5 @@
-const host = "https://i-earn1.vip";
-const timeoutLoadComp = 30000;
+const host = "https://i-earn9.vip";
+const timeoutLoadComp = 60000;
 
 module.exports = {
   host,

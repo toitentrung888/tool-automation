@@ -1,53 +1,127 @@
 const HomePage = require("../pages/home.page");
 const LoginPage = require("../pages/login.page");
-
-const Users = require("../data/Users");
-const common = require("../util/common");
+let { numberTaskComplete, numberTaskNotComplete } = require("../data/Model");
+const { iearns } = require("../data/Users");
 
 describe("webdriver.io page", () => {
-  it("demo receive task", () => {
-    browser.maximizeWindow();
-    // LoginPage.loginTikTok();
-    LoginPage.loginYoutube();
-    LoginPage.loginFaceBook();
-    LoginPage.loginInstagram();
+  context.skip("USER FILE", () => {
+    it("Thực hiện nhận nhiệm vụ", () => {
+      browser.maximizeWindow();
 
-    for (let i = 0; i < Users.length; i++) {
-      LoginPage.open();
-      LoginPage.login(Users[i].username, Users[i].password);
+      for (let i = 0; i < iearns.length; i++) {
+        try {
+          LoginPage.open();
+          LoginPage.login(iearns[i].username, iearns[i].password);
 
-      HomePage.closePopupModelFadeShow();
-      let numberTaskOfDay = HomePage.getNumberTaskOfDay();
+          let numberTaskOfDay = HomePage.getNumberTaskOfDay();
 
-      HomePage.goToApplyTaskPage();
-      let taskCompleteReceived;
-      let taskNOTCompleteReceived;
+          HomePage.goToApplyTaskPage();
 
-      taskCompleteReceived = HomePage.getNumberTaskCompleteReceived(
-        numberTaskOfDay
-      );
-      if (numberTaskOfDay === taskCompleteReceived.length) {
-        continue;
-      } else {
-        HomePage.goToSubmissionTaskPage();
-        taskNOTCompleteReceived = HomePage.getNumberTaskCompleteReceived(
-          numberTaskOfDay
-        );
+          numberTaskComplete = HomePage.getNumberTaskCompleteReceived(
+            numberTaskOfDay
+          ).length;
+          if (numberTaskOfDay === numberTaskComplete) {
+            continue;
+          } else {
+            HomePage.goToSubmissionTaskPage();
+            numberTaskNotComplete = HomePage.getNumberTaskCompleteReceived(
+              numberTaskOfDay
+            ).length;
+          }
+          let remainNumberTask =
+            numberTaskOfDay - (numberTaskComplete + numberTaskNotComplete);
+          if (remainNumberTask > 0) {
+            HomePage.goToFenleiPage();
+            HomePage.receiveTask(numberTaskOfDay);
+          }
+        } catch (err) {
+          console.log(`LỖI NHẬN NHIỆM VỤ: 0${iearns[i].username}`)
+        }
       }
-      let remainNumberTask =
-        numberTaskOfDay -
-        (taskCompleteReceived.length + taskNOTCompleteReceived.length);
-      let countNewTaskReceive = 0
-      if (remainNumberTask > 0) {
-        HomePage.goToFenleiPage();
-        countNewTaskReceive = HomePage.receiveTask(remainNumberTask, common.getVip(numberTaskOfDay));
-        HomePage.goToSubmissionTaskPage();
+    });
+
+    it("Thực hiện làm nhiệm vụ", () => {
+      browser.maximizeWindow();
+      LoginPage.loginTikTok();
+      LoginPage.loginInstagram();
+      LoginPage.loginYoutube();
+
+      // LoginPage.loginFaceBook();
+
+      for (let i = 0; i < iearns.length; i++) {
+        try {
+          LoginPage.open();
+          LoginPage.login(iearns[i].username, iearns[i].password);
+          HomePage.executeTask();
+        } catch (e) {
+          console.log(`LỖI THỰC HIỆN NHIỆM VỤ: 0${iearns[i].username}`)
+        }
       }
-      if (taskNOTCompleteReceived.length > 0 ||
-        countNewTaskReceive > 0) {
-        HomePage.executeTask(numberTaskOfDay - taskCompleteReceived.length);
+    });
+  })
+
+  context("ACCOUNT INCREASE", () => {
+    let phoneNumber = 0911111001;
+    let loop = 400;
+    it.skip("Thực hiện nhận nhiệm vụ", () => {
+      browser.maximizeWindow();
+
+      for (let i = 0; i < loop; i++) {
+        try {
+          LoginPage.open();
+          LoginPage.login(`0${Number(phoneNumber) + i}`, "Abc1234@");
+
+          let numberTaskOfDay = HomePage.getNumberTaskOfDay();
+
+          HomePage.goToApplyTaskPage();
+
+          numberTaskComplete = HomePage.getNumberTaskCompleteReceived(
+            numberTaskOfDay
+          ).length;
+          if (numberTaskOfDay === numberTaskComplete) {
+            continue;
+          } else {
+            HomePage.goToSubmissionTaskPage();
+            numberTaskNotComplete = HomePage.getNumberTaskCompleteReceived(
+              numberTaskOfDay
+            ).length;
+          }
+          let remainNumberTask =
+            numberTaskOfDay - (numberTaskComplete + numberTaskNotComplete);
+          if (remainNumberTask > 0) {
+            HomePage.goToFenleiPage();
+            HomePage.receiveTask(numberTaskOfDay);
+          }
+        } catch (err) {
+          console.log(`LỖI NHẬN NHIỆM VỤ: 0${Number(phoneNumber) + i}`)
+        }
       }
-      console.log("Execute task complete");
-    }
+    });
+
+    it("Thực hiện nhiệm vụ", () => {
+      browser.maximizeWindow();
+      LoginPage.loginTikTok();
+      LoginPage.loginInstagram();
+      LoginPage.loginYoutube();
+
+      // LoginPage.loginFaceBook();
+
+      for (let i = 0; i < loop; i++) {
+        try {
+          LoginPage.open();
+          LoginPage.login(`0${Number(phoneNumber) + i}`, "Abc1234@");
+          HomePage.executeTask();
+        } catch (e) {
+          console.log(`LỖI THỰC HIỆN NHIỆM VỤ: 0${Number(phoneNumber) + i}`)
+        }
+      }
+    });
+  })
+
+  context.skip("COMMON FUNCTION", () => {
+    it("Register account", () => {
+      browser.maximizeWindow();
+      LoginPage.register();
+    })
   });
 });
